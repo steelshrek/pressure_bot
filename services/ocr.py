@@ -1,38 +1,35 @@
-import asyncio
-from os import getenv
-
-from google import genai
-from pydantic import BaseModel  # Обычно идет вместе с библиотекой
-from PIL import Image
 import os
+from os import getenv
+from google import genai
+from pydantic import BaseModel
+from PIL import Image
 
-
-# Описываем структуру данных, которую хотим получить
+# Описываем структуру данных
 class PressureData(BaseModel):
     sys: int
     dia: int
     pul: int
 
-# Твой клиент
-client = genai.Client(api_key=getenv("API_KEY"))
-
+# Твой клиент (убедись, что API_KEY в переменной окружения)
+client = genai.Client(api_key=getenv("GEMINI_API_KEY"))
 
 async def get_pressure_from_gemini(image_path):
     if not os.path.exists(image_path):
         return {"error": "File not found"}
 
     try:
+        # Открываем изображение
         image = Image.open(image_path)
 
-        # Используем 2.5-flash, раз она у тебя в списке первая
-        model_id = "gemini-2.5-flash"
+        # Ставим актуальную модель (2.0 или 1.5)
+        model_id = "gemini-2.0-flash"
 
         prompt = (
             "Extract blood pressure readings from this 7-segment display. "
-            "Top is Systolic, middle is Diastolic, bottom is Pulse."
+            "Top is Systolic (sys), middle is Diastolic (dia), bottom is Pulse (pul)."
         )
 
-        # Используем response_mime_type для получения чистого JSON
+        # Выполняем запрос
         response = client.models.generate_content(
             model=model_id,
             contents=[image, prompt],
@@ -42,21 +39,12 @@ async def get_pressure_from_gemini(image_path):
             }
         )
 
-        # Теперь response.parsed — это уже готовый объект/словарь
-        return response.parsed.model_dump()
+        # Проверяем, удалось ли распарсить данные
+        if response.parsed:
+            return response.parsed.model_dump()
+        else:
+            return {"error": "PARSING_ERROR", "msg": "Gemini couldn't parse the image"}
 
     except Exception as e:
+        print(f"Gemini API Error: {e}")
         return {"error": "API_ERROR", "msg": str(e)}
-
-
-# if __name__ == "__main__":
-#     photo = 'LD-51Ssmall.jpg'
-#     print(f"--- Анализ фото через {photo} ---")
-#
-#     result = asyncio.run(get_pressure_from_gemini(photo))
-#
-#     if "error" not in result:
-#         print(f"Результат: {result}")
-#         print(f"\nДанные распознаны: {result['sys']}/{result['dia']}, Пульс: {result['pul']}")
-#     else:
-#         print(f"Ошибка: {result}")
