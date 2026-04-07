@@ -1,10 +1,11 @@
-
+# Используем стандартный образ Python
 FROM python:3.11-slim
 
-# Устанавливаем системные зависимости для работы с графиками и БД
+# Устанавливаем только необходимые системные зависимости
 RUN apt-get update && apt-get install -y \
-    libatlas-base-dev \
     gcc \
+    python3-dev \
+    libopenjp2-7 \
     && rm -rf /var/lib/apt/lists/*
 
 # Создаем рабочую папку
