@@ -48,41 +48,26 @@ async def back(message: types.Message, state: FSMContext):
     await message.answer("Главное меню", reply_markup=main_menu_kb())
 
 
-@router.message(MeasuresSetup.sending_photo, F.photo)
-async def send_photo(message: types.Message, state: FSMContext):
-    await message.answer("Читаю фота")
-    file_id = message.photo[-1].file_id
-    file = await message.bot.get_file(file_id)
-    folder = "photos"
-    file_path = os.path.join(folder, f"{file.file_id}.jpg")
 
-    # ВАЖНО: Создаем папку, если её нет
-    if not os.path.exists(folder):
-        os.makedirs(folder)
 
-    # Теперь скачивание сработает
-    await message.bot.download_file(file.file_path, file_path)
+@router.message(F.photo)
+async def handle_photo(message: types.Message):
+    await message.answer("Читаю фота...")
+    asyncio.create_task(process_ocr_logic(message))
+
+
+async def process_ocr_logic(message: types.Message):
+    # Вся тяжелая логика (download_file, gemini_call) переезжает сюда
     try:
-        result=await get_pressure_from_gemini(file_path)
-
-        if "error" in result:
-            await message.answer("Чота хуня совсем")
-            return
-
-        await state.update_data(recognized_data=result)
-        sys, dia, pul = result['sys'], result['dia'], result['pul']
-
-        if sys < 90 or sys > 200 or dia < 40 or dia > 150 or pul < 20 or pul > 200:
-            await message.answer("Чота хуня, давай заново")
-        else:
-            await message.answer(
-                f"Распознало: {sys}/{dia}, Пульс: {pul}\nВсе верно?",
-                reply_markup=confirm_measure_kb()
-            )
-            await state.set_state(MeasuresSetup.confirming_data)
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        # Не забудь про await!
+        file_id = message.photo[-1].file_id
+        file = await message.bot.get_file(file_id)
+        folder = "photos"
+        file_path = os.path.join(folder, f"{file.file_id}.jpg")
+        result = await get_pressure_from_gemini(file_path)
+        await message.answer(f"Результат: {result}")
+    except Exception as e:
+        print(f"Ошибка в фоне: {e}")
 
 
 
