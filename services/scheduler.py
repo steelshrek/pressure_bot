@@ -1,3 +1,5 @@
+from os import getenv
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
 from aiogram import Bot, Dispatcher
@@ -7,7 +9,7 @@ from keyboards.inline import cancel_measure_kb
 from services.loader import bot, dp, scheduler
 from states import MeasuresSetup
 
-token = "8605810081:AAHFhrN67mSLBRbQ0q0-z_xsOF9epoYcHGA"
+token = getenv("TOKEN")
 
 
 async def send_reminder(tg_id):
