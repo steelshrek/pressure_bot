@@ -53,7 +53,14 @@ async def send_photo(message: types.Message, state: FSMContext):
     await message.answer("Читаю фота")
     file_id = message.photo[-1].file_id
     file = await message.bot.get_file(file_id)
-    file_path = file.file_path
+    folder = "photos"
+    file_path = os.path.join(folder, f"{file.file_id}.jpg")
+
+    # ВАЖНО: Создаем папку, если её нет
+    if not os.exists(folder):
+        os.makedirs(folder)
+
+    # Теперь скачивание сработает
     await message.bot.download_file(file.file_path, file_path)
     try:
         result=asyncio.create_task(get_pressure_from_gemini(file_path))
