@@ -59,8 +59,9 @@ async def send_photo(message: types.Message, state: FSMContext):
 
         # ПРОВЕРКА НА ОШИБКУ ИЗ ГЕМИНИ
         if "error" in result:
-            print(f"Ошибка OCR: {result['error']}")
-            raise KeyError("Gemini failed")
+            print(f"OCR Error: {result['error']}")  # Увидишь в консоли
+            await message.answer(f"Ошибка сервиса: {result['error']}")
+            return
 
         sys = result.get('sys')
         dia = result.get('dia')
