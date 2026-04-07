@@ -57,7 +57,7 @@ async def send_photo(message: types.Message, state: FSMContext):
     file_path = os.path.join(folder, f"{file.file_id}.jpg")
 
     # ВАЖНО: Создаем папку, если её нет
-    if not os.exists(folder):
+    if not os.path.exists(folder):
         os.makedirs(folder)
 
     # Теперь скачивание сработает
