@@ -1,4 +1,3 @@
-# webhook.py
 import asyncio
 from aiohttp import web
 from os import getenv
@@ -11,29 +10,37 @@ from db.models import async_main
 
 async def on_startup(app):
     setup_handlers()
-    await async_main()              # создать таблицы
-    await init_scheduler()          # поднять APScheduler
 
-    WEBHOOK_URL = f"https://{getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
-    await bot.set_webhook(WEBHOOK_URL)
-    print(f"Webhook set: {WEBHOOK_URL}")
+    await async_main()      # создать таблицы
+    await init_scheduler()  # поднять APScheduler
+
+    webhook_url = f"https://{getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
+    await bot.set_webhook(webhook_url)
+    print(f"Webhook set: {webhook_url}")
 
 
 async def on_shutdown(app):
     await bot.session.close()
 
 
-async def main():
+async def create_app():
     app = web.Application()
+
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
+    # Register webhook path
     SimpleRequestHandler(dp, bot).register(app, path="/webhook")
-    setup_application(app)
 
-    port = int(getenv("PORT", 10000))
-    return app, port
+    # REQUIRED: must pass dp
+    setup_application(app, dp)
+
+    return app
 
 
 if __name__ == "__main__":
-    web.run_app(*asyncio.run(main()))
+    port = int(getenv("PORT", 10000))
+
+    app = asyncio.run(create_app())
+
+    web.run_app(app, host="0.0.0.0", port=port)
