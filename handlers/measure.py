@@ -66,6 +66,8 @@ async def send_photo(message: types.Message, state: FSMContext):
                 reply_markup=confirm_measure_kb()
             )
             await state.set_state(MeasuresSetup.confirming_data)
+    except KeyError as e:
+        await message.answer(f"Хуня, попробуй снова")
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
