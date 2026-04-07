@@ -18,33 +18,23 @@ async def get_pressure_from_gemini(image_path):
         return {"error": "File not found"}
 
     try:
-        # Открываем изображение
+        # Важно: для google-genai лучше передавать Image напрямую вот так:
         image = Image.open(image_path)
+        model_id = "gemini-2.0-flash" # 2.5 не существует, юзай 2.0
 
-        # Ставим актуальную модель (2.0 или 1.5)
-        model_id = "gemini-2.0-flash"
-
-        prompt = (
-            "Extract blood pressure readings from this 7-segment display. "
-            "Top is Systolic (sys), middle is Diastolic (dia), bottom is Pulse (pul)."
-        )
-
-        # Выполняем запрос
         response = client.models.generate_content(
             model=model_id,
-            contents=[image, prompt],
+            contents=[image, "Extract: sys, dia, pul. Return JSON."],
             config={
                 'response_mime_type': 'application/json',
                 'response_schema': PressureData,
             }
         )
 
-        # Проверяем, удалось ли распарсить данные
         if response.parsed:
             return response.parsed.model_dump()
-        else:
-            return {"error": "PARSING_ERROR", "msg": "Gemini couldn't parse the image"}
+        return {"error": "empty_parsed"}
 
     except Exception as e:
-        print(f"Gemini API Error: {e}")
-        return {"error": "API_ERROR", "msg": str(e)}
+        print(f"!!! GEMINI CRASH: {e}") # Увидишь в логах Render
+        return {"error": str(e)}
