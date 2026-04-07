@@ -9,7 +9,7 @@ services:
       pip install --upgrade pip
       pip install -r requirements.txt
 
-    startCommand: python main.py
+    startCommand: python webhooks.py
 
     envVars:
       - key: TOKEN
