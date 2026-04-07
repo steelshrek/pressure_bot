@@ -63,7 +63,7 @@ async def send_photo(message: types.Message, state: FSMContext):
     # Теперь скачивание сработает
     await message.bot.download_file(file.file_path, file_path)
     try:
-        result=asyncio.create_task(get_pressure_from_gemini(file_path))
+        result=await get_pressure_from_gemini(file_path)
 
         if "error" in result:
             await message.answer("Чота хуня совсем")
@@ -72,7 +72,7 @@ async def send_photo(message: types.Message, state: FSMContext):
         await state.update_data(recognized_data=result)
         sys, dia, pul = result['sys'], result['dia'], result['pul']
 
-        if (sys < 90 or sys > 200 or dia < 40 or dia > 150 or pul < 20 or pul > 200):
+        if sys < 90 or sys > 200 or dia < 40 or dia > 150 or pul < 20 or pul > 200:
             await message.answer("Чота хуня, давай заново")
         else:
             await message.answer(
