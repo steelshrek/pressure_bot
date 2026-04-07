@@ -29,10 +29,11 @@ async def create_app():
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
-    # Register webhook path
+    # Регистрируем обработчик вебхука
+    # SimpleRequestHandler сам связывает бот и диспетчер для этого пути
     SimpleRequestHandler(dp, bot).register(app, path="/webhook")
 
-    # REQUIRED: must pass dp
+    # ВАЖНО: Передаем и app, и dp
     setup_application(app, dp)
 
     return app
@@ -41,6 +42,8 @@ async def create_app():
 if __name__ == "__main__":
     port = int(getenv("PORT", 10000))
 
-    app = asyncio.run(create_app())
+    # Для aiohttp лучше использовать такой способ запуска,
+    # чтобы не было конфликтов с asyncio.run()
+    app = asyncio.get_event_loop().run_until_complete(create_app())
 
     web.run_app(app, host="0.0.0.0", port=port)
