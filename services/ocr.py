@@ -11,7 +11,7 @@ class PressureData(BaseModel):
     pul: int
 
 # Твой клиент (убедись, что API_KEY в переменной окружения)
-client = genai.Client(api_key=getenv("GEMINI_API_KEY"))
+client = genai.Client(api_key=getenv("API_KEY"))
 
 async def get_pressure_from_gemini(image_path):
     if not os.path.exists(image_path):
