@@ -15,17 +15,15 @@ from states import MeasuresSetup
 router = Router()
 
 
-
-@router.message(F.text=="📝 Сфоткать тонометр")
+@router.message(F.text == "📝 Сфоткать тонометр")
 async def measure(message: types.Message, state: FSMContext):
-    await message.answer("Жду фота",reply_markup=menu_back_kb())
+    await message.answer("Жду фота", reply_markup=menu_back_kb())
     await state.set_state(MeasuresSetup.sending_photo)
 
-@router.callback_query(F.data=="cancel_send")
+
+@router.callback_query(F.data == "cancel_send")
 async def cancel_photo(callback: types.CallbackQuery, state: FSMContext):
     tg_id = callback.from_user.id
-
-    # Визначаємо час: зараз + 10 хвилин
     run_time = datetime.now() + timedelta(minutes=10)
 
     scheduler.add_job(
@@ -41,7 +39,7 @@ async def cancel_photo(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
 
 
-@router.message(F.text=="Назад")
+@router.message(F.text == "Назад")
 async def back(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer("Главное меню", reply_markup=main_menu_kb())
@@ -54,55 +52,66 @@ async def send_photo(message: types.Message, state: FSMContext):
     file = await message.bot.get_file(file_id)
     file_path = f"temp_{file_id}.jpg"
     await message.bot.download_file(file.file_path, file_path)
+
     try:
         result = await get_pressure_from_gemini(file_path)
+
+        # Безопасно вытягиваем значения
+        sys = result.get('sys')
+        dia = result.get('dia')
+        pul = result.get('pul')
+
+        # Если чего-то не хватает, кидаем в ошибку (KeyError) вручную или через проверку
+        if sys is None or dia is None or pul is None:
+            raise KeyError("Missing data")
+
         await state.update_data(recognized_data=result)
-        if(result['sys']<90)or(result['sys']>200) or (result['dia']<40)or(result['dia']>150)or (result['pul']<20)or(result['pul']>200):
+
+        # Твои условия проверки
+        if (sys < 90) or (sys > 200) or (dia < 40) or (dia > 150) or (pul < 20) or (pul > 200):
             await message.answer("Чота хуня, давай заново")
         else:
             await message.answer(
-                f"Распознало: {result['sys']}/{result['dia']}, Пульс: {result['pul']}\n"
+                f"Распознало: {sys}/{dia}, Пульс: {pul}\n"
                 "Все верно?",
                 reply_markup=confirm_measure_kb()
             )
             await state.set_state(MeasuresSetup.confirming_data)
-    except KeyError as e:
-        await message.answer(f"Хуня, попробуй снова")
+
+    except (KeyError, Exception):
+        await message.answer("Хуня, попробуй снова")
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
 
 
-
-@router.callback_query(MeasuresSetup.confirming_data, F.data=="confirm_save")
+@router.callback_query(MeasuresSetup.confirming_data, F.data == "confirm_save")
 async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer("Фиксирую показания")
-    user_data=await state.get_data()
-    result=user_data['recognized_data']
-    await add_pressure_record(callback.from_user.id,result['sys'],result['dia'],result['pul'])
-    await callback.message.edit_text("ЕСть")
+    user_data = await state.get_data()
+    result = user_data.get('recognized_data')
+
+    if result:
+        await add_pressure_record(callback.from_user.id, result['sys'], result['dia'], result['pul'])
+        await callback.message.edit_text("ЕСть")
+        await state.clear()
 
 
-@router.callback_query(MeasuresSetup.confirming_data, F.data=="edit_measure")
+@router.callback_query(MeasuresSetup.confirming_data, F.data == "edit_measure")
 async def edit_measure(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Введи руками, типа: 120/80/60")
     await state.set_state(MeasuresSetup.sending_manual)
 
 
-
 @router.message(MeasuresSetup.sending_manual, F.text)
 async def measure_manual(message: types.Message, state: FSMContext):
     try:
-        messaglist = message.text.split('/')
+        messaglist = message.text.replace(' ', '').split('/')
         if len(messaglist) != 3:
             raise ValueError
-        sys, dia, pul = map(int, messaglist)  # Конвертируем всё в числа
+        sys, dia, pul = map(int, messaglist)
         await add_pressure_record(message.from_user.id, sys, dia, pul)
         await message.answer("ЕСть", reply_markup=main_menu_kb())
         await state.clear()
     except ValueError:
         await message.answer("Ошибка! Введи в формате: 120/80/60")
-
-
-
-
