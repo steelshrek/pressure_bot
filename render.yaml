@@ -1,27 +1,15 @@
 services:
   - type: web
-    name: pressure_bot
-    runtime: python
-    region: frankfurt
+    name: daryabot
+    env: docker
     plan: free
-
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-
-    startCommand: python webhooks.py
-
+    repo: https://github.com/YOUR_USERNAME/YOUR_REPO
+    branch: main
+    dockerfilePath: Dockerfile
     envVars:
-      - key: TOKEN
+      - key: BOT_TOKEN
         sync: false
-      - key: API_KEY
-        sync: false
+      - key: WEBHOOK_HOST
+        value: https://daryabot.onrender.com
       - key: PORT
         value: 10000
-
-      # Автоматически создаваемое Render — домен сервиса
-      - key: RENDER_EXTERNAL_HOSTNAME
-        fromService:
-          name: pressure_bot
-          type: web
-          property: hostname
