@@ -56,13 +56,19 @@ async def send_photo(message: types.Message, state: FSMContext):
     await message.bot.download_file(file.file_path, file_path)
     try:
         result = await get_pressure_from_gemini(file_path)
+
+        if "error" in result:
+            await message.answer("Чота хуня совсем")
+            return
+
         await state.update_data(recognized_data=result)
-        if(result['sys']<90)or(result['sys']>200) or (result['dia']<40)or(result['dia']>150)or (result['pul']<20)or(result['pul']>200):
+        sys, dia, pul = result['sys'], result['dia'], result['pul']
+
+        if (sys < 90 or sys > 200 or dia < 40 or dia > 150 or pul < 20 or pul > 200):
             await message.answer("Чота хуня, давай заново")
         else:
             await message.answer(
-                f"Распознало: {result['sys']}/{result['dia']}, Пульс: {result['pul']}\n"
-                "Все верно?",
+                f"Распознало: {sys}/{dia}, Пульс: {pul}\nВсе верно?",
                 reply_markup=confirm_measure_kb()
             )
             await state.set_state(MeasuresSetup.confirming_data)

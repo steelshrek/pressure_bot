@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: pressure_bot
+    runtime: python
+    region: frankfurt
+    plan: free
+
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+
+    startCommand: python main.py
+
+    envVars:
+      - key: TOKEN
+        sync: false
+      - key: API_KEY
+        sync: false
+      - key: PORT
+        value: 10000
+
+      # Автоматически создаваемое Render — домен сервиса
+      - key: RENDER_EXTERNAL_HOSTNAME
+        fromService:
+          name: pressure_bot
+          type: web
+          property: hostname

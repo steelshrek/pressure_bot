@@ -46,25 +46,16 @@ async def get_settings():
                 args=[tg_id],
                 id=f"remind_2_{tg_id}"
             )
-async def update_settings(tg_id, new_time_morning, new_time_evening ):
-    async with async_session() as session:
-        await update_reminder_time(tg_id, new_time_morning, new_time_evening)
-        if scheduler.get_job(f"remind_1_{tg_id}") or scheduler.get_job(f"remind_2_{tg_id}"):
-            scheduler.remove_job(f"remind_1_{tg_id}")
-            scheduler.remove_job(f"remind_2_{tg_id}")
-        scheduler.add_job(
-            send_reminder,
-            trigger="cron",
-            hour=new_time_morning.hour,
-            minute=new_time_morning.minute,
-            args=[tg_id],
-            id=f"remind_1_{tg_id}"
-        )
-        scheduler.add_job(
-            send_reminder,
-            trigger="cron",
-            hour=new_time_evening.hour,
-            minute=new_time_evening.minute,
-            args=[tg_id],
-            id=f"remind_2_{tg_id}"
-        )
+
+async def update_settings(tg_id, new_time_morning, new_time_evening):
+    # update_reminder_time уже вызван в хендлере settings.py — не дублируем
+    for job_id in [f"remind_1_{tg_id}", f"remind_2_{tg_id}"]:
+        if scheduler.get_job(job_id):
+            scheduler.remove_job(job_id)
+
+    scheduler.add_job(send_reminder, trigger="cron",
+        hour=new_time_morning.hour, minute=new_time_morning.minute,
+        args=[tg_id], id=f"remind_1_{tg_id}")
+    scheduler.add_job(send_reminder, trigger="cron",
+        hour=new_time_evening.hour, minute=new_time_evening.minute,
+        args=[tg_id], id=f"remind_2_{tg_id}")
