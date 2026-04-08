@@ -1,10 +1,11 @@
+from os import getenv
+
 from sqlalchemy import BigInteger, String, ForeignKey, DateTime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from datetime import datetime, time
 
-# 1. Подключение (создаст файл db.sqlite3)
-engine = create_async_engine(url='sqlite+aiosqlite:///db.sqlite3')
+engine = create_async_engine(getenv("DATABASE_URL"))
 async_session = async_sessionmaker(engine)
 
 

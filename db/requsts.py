@@ -50,7 +50,6 @@ async def get_or_create_settings(tg_id: int):
                 settings = Settings(user_id=user.id, f_time_of_not=time(9,0), s_time_of_not=time(21,0))
                 session.add(settings)
                 await session.commit()
-                await session.refresh(settings)
         return settings
 
 
