@@ -55,41 +55,48 @@ from aiogram import types, F
 
 # ... ваш роутер ...
 
-@router.message(F.photo)
-async def handle_photo(message: types.Message):
+@router.message(MeasuresSetup.sending_photo, F.photo)
+async def handle_photo(message: types.Message, state: FSMContext):  # Добавляем state сюда
     await message.answer("Читаю фото...")
-    # Запускаем фоновую задачу
-    asyncio.create_task(process_ocr_logic(message))
+    # Прокидываем state в фоновую задачу
+    asyncio.create_task(process_ocr_logic(message, state))
 
 
-async def process_ocr_logic(message: types.Message):
+async def process_ocr_logic(message: types.Message, state: FSMContext):  # Принимаем state
     try:
-        # 1. Получаем информацию о файле
         file_id = message.photo[-1].file_id
         file = await message.bot.get_file(file_id)
 
-        # 2. Формируем путь (используем os.path для совместимости с Linux)
         folder = "photos"
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)  # Более лаконично, чем if not exists
 
-        file_name = f"{file.file_id}.jpg"
-        destination = os.path.join(folder, file_name)
+        destination = os.path.join(folder, f"{file.file_id}.jpg")
 
-        # 3. СКАЧИВАЕМ файл на диск (Критический момент!)
+        # Скачивание
         await message.bot.download_file(file.file_path, destination)
 
-        # 4. Передаем путь в Gemini
-        # Убедитесь, что функция принимает путь к локальному файлу
+        # OCR
         result = await get_pressure_from_gemini(destination)
 
-        await message.answer(f"Результат: {result}")
+        # Удаляем файл СРАЗУ после того, как Gemini его прочитал
+        if os.path.exists(destination):
+            os.remove(destination)
 
-        os.remove(destination)
+        # Установка состояния и ответ
+        await message.answer(
+            f"Распознало: {result['sys']}/{result['dia']}, Пульс: {result['pul']}\n"
+            "Все верно?",
+            reply_markup=confirm_measure_kb()
+        )
+        # Теперь state доступен и не вызовет ошибку
+        await state.set_state(MeasuresSetup.confirming_data)
+
+        # Рекомендую также сохранить данные в state, чтобы потом их достать при подтверждении
+        await state.update_data(sys=result['sys'], dia=result['dia'], pul=result['pul'])
 
     except Exception as e:
         print(f"Ошибка в фоне: {e}")
-        # Стоит уведомить пользователя, если что-то пошло не так
+        await message.answer("Не распознал фота")
 
 
 
@@ -97,8 +104,11 @@ async def process_ocr_logic(message: types.Message):
 async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer("Фиксирую показания")
     user_data=await state.get_data()
-    result=user_data['recognized_data']
-    await add_pressure_record(callback.from_user.id,result['sys'],result['dia'],result['pul'])
+    sys = user_data.get('sys')
+    dia = user_data.get('dia')
+    pul = user_data.get('pul')
+
+    await add_pressure_record(callback.from_user.id, sys, dia, pul)
     await callback.message.edit_text("ЕСть")
 
 
