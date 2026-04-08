@@ -48,26 +48,48 @@ async def back(message: types.Message, state: FSMContext):
     await message.answer("Главное меню", reply_markup=main_menu_kb())
 
 
+import os
+import asyncio
+from aiogram import types, F
 
+
+# ... ваш роутер ...
 
 @router.message(F.photo)
 async def handle_photo(message: types.Message):
-    await message.answer("Читаю фота...")
+    await message.answer("Читаю фото...")
+    # Запускаем фоновую задачу
     asyncio.create_task(process_ocr_logic(message))
 
 
 async def process_ocr_logic(message: types.Message):
-    # Вся тяжелая логика (download_file, gemini_call) переезжает сюда
     try:
-        # Не забудь про await!
+        # 1. Получаем информацию о файле
         file_id = message.photo[-1].file_id
         file = await message.bot.get_file(file_id)
+
+        # 2. Формируем путь (используем os.path для совместимости с Linux)
         folder = "photos"
-        file_path = os.path.join(folder, f"{file.file_id}.jpg")
-        result = await get_pressure_from_gemini(file_path)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+        file_name = f"{file.file_id}.jpg"
+        destination = os.path.join(folder, file_name)
+
+        # 3. СКАЧИВАЕМ файл на диск (Критический момент!)
+        await message.bot.download_file(file.file_path, destination)
+
+        # 4. Передаем путь в Gemini
+        # Убедитесь, что функция принимает путь к локальному файлу
+        result = await get_pressure_from_gemini(destination)
+
         await message.answer(f"Результат: {result}")
+
+        os.remove(destination)
+
     except Exception as e:
         print(f"Ошибка в фоне: {e}")
+        # Стоит уведомить пользователя, если что-то пошло не так
 
 
 
