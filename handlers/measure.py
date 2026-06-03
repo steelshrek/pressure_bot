@@ -78,20 +78,17 @@ async def process_ocr_logic(message: types.Message, state: FSMContext):  # Пр�
         # OCR
         result = await get_pressure_from_gemini(destination)
 
-        # Удаляем файл СРАЗУ после того, как Gemini его прочитал
         if os.path.exists(destination):
             os.remove(destination)
 
-        # Установка состояния и ответ
         await message.answer(
             f"Распознало: {result['sys']}/{result['dia']}, Пульс: {result['pul']}\n"
             "Все верно?",
             reply_markup=confirm_measure_kb()
         )
-        # Теперь state доступен и не вызовет ошибку
         await state.set_state(MeasuresSetup.confirming_data)
 
-        # Рекомендую также сохранить данные в state, чтобы потом их достать при подтверждении
+
         await state.update_data(sys=result['sys'], dia=result['dia'], pul=result['pul'])
 
     except Exception as e:

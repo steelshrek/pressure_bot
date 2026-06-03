@@ -5,7 +5,6 @@ from aiogram.types import InlineKeyboardButton
 def confirm_measure_kb():
     builder = InlineKeyboardBuilder()
 
-    # Кнопка с данными для обработки ботом
     builder.add(InlineKeyboardButton(
         text="✅ Все верно",
         callback_data="confirm_save")

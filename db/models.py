@@ -14,8 +14,6 @@ async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncS
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 
-
-# 2. Таблица пользователей
 class User(Base):
     __tablename__ = 'users'
 
@@ -24,7 +22,6 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=True)
 
 
-# 3. Таблица замеров давления
 class PressureRecord(Base):
     __tablename__ = 'pressure_records'
 
@@ -43,7 +40,6 @@ class Settings(Base):
     f_time_of_not:Mapped[time]= mapped_column()
     s_time_of_not:Mapped[time]= mapped_column()
 
-# Функция для создания таблиц при запуске
 async def async_main():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

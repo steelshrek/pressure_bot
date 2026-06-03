@@ -16,12 +16,11 @@ async def set_user(tg_id: int, name: str):
 
 async def add_pressure_record(tg_id: int, sys: int, dia: int, pul: int):
     async with async_session() as session:
-        # Ищем юзера или создаем на лету, если он почему-то выпал из базы
         user = await session.scalar(select(User).where(User.tg_id == tg_id))
         if not user:
             user = User(tg_id=tg_id, name="User")
             session.add(user)
-            await session.flush()  # Получаем ID пользователя
+            await session.flush()
 
         new_record = PressureRecord(user_id=user.id, sys=sys, dia=dia, pul=pul)
         session.add(new_record)
@@ -31,7 +30,6 @@ async def add_pressure_record(tg_id: int, sys: int, dia: int, pul: int):
 
 async def get_pressure_history(tg_id: int, days: int = None):
     async with async_session() as session:
-        # В Postgres лучше сначала найти ID юзера, так запрос отработает быстрее и надежнее
         user_id_subquery = select(User.id).where(User.tg_id == tg_id).scalar_subquery()
 
         query = select(PressureRecord).where(PressureRecord.user_id == user_id_subquery)
@@ -40,21 +38,18 @@ async def get_pressure_history(tg_id: int, days: int = None):
             start_date = datetime.now() - timedelta(days=days)
             query = query.where(PressureRecord.timestamp >= start_date)
 
-        query = query.order_by(PressureRecord.timestamp.desc())  # Сначала новые
+        query = query.order_by(PressureRecord.timestamp.desc())
 
         result = await session.execute(query)
-        # .all() возвращает список объектов. В асинхронном режиме это безопасно.
         return result.scalars().all()
 
 
 async def get_or_create_settings(tg_id: int):
     async with async_session() as session:
-        # Ищем через JOIN
         query = select(Settings).join(User).where(User.tg_id == tg_id)
         settings = await session.scalar(query)
 
         if not settings:
-            # Если настроек нет, проверяем юзера
             user = await session.scalar(select(User).where(User.tg_id == tg_id))
             if not user:
                 user = User(tg_id=tg_id, name="User")
@@ -68,7 +63,6 @@ async def get_or_create_settings(tg_id: int):
             )
             session.add(settings)
             await session.commit()
-            # Важно: refresh нужен только если ты будешь использовать объект СРАЗУ
             await session.refresh(settings)
 
         return settings
@@ -83,7 +77,6 @@ async def update_reminder_time(tg_id: int, morning: time, evening: time):
             settings.f_time_of_not = morning
             settings.s_time_of_not = evening
         else:
-            # Если вдруг настроек не было (аномалия), создаем их
             user = await session.scalar(select(User).where(User.tg_id == tg_id))
             if not user:
                 user = User(tg_id=tg_id, name="User")
