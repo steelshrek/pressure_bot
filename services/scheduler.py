@@ -7,18 +7,19 @@ from states import MeasuresSetup
 
 
 async def send_reminder(tg_id):
-    await bot.send_message(
-        tg_id,
-        "Будь ласка, надішліть фото екрана тонометра для фіксації показників.",
-        reply_markup=cancel_measure_kb()
-    )
     state_with_data = dp.fsm.resolve_context(
         bot=bot,
         chat_id=tg_id,
         user_id=tg_id
     )
+    await state_with_data.clear()
     await state_with_data.set_state(MeasuresSetup.sending_photo)
 
+    await bot.send_message(
+        tg_id,
+        "Будь ласка, надішліть фото екрана тонометра для фіксації показників.",
+        reply_markup=cancel_measure_kb()
+    )
 
 
 async def get_settings():

@@ -14,6 +14,40 @@ from states import MeasuresSetup
 
 router = Router()
 
+MIN_SYS = 50
+MAX_SYS = 300
+MIN_DIA = 30
+MAX_DIA = 200
+MIN_PUL = 30
+MAX_PUL = 220
+
+
+def normalize_pressure_values(sys_value, dia_value, pul_value):
+    sys = int(sys_value)
+    dia = int(dia_value)
+    pul = int(pul_value)
+    return sys, dia, pul
+
+
+def has_absurd_pressure_values(sys: int, dia: int, pul: int):
+    return (
+        sys < MIN_SYS
+        or sys > MAX_SYS
+        or dia < MIN_DIA
+        or dia > MAX_DIA
+        or pul < MIN_PUL
+        or pul > MAX_PUL
+        or dia >= sys
+    )
+
+
+async def switch_to_manual_input(message: types.Message, state: FSMContext):
+    await message.answer(
+        "Розпізнані показники виглядають некоректними. "
+        "Введіть дані вручну у форматі 120/80/60."
+    )
+    await state.set_state(MeasuresSetup.sending_manual)
+
 
 @router.message(F.text == BTN_MEASURE_PHOTO)
 async def measure(message: types.Message, state: FSMContext):
@@ -58,7 +92,6 @@ async def handle_photo(message: types.Message, state: FSMContext):
 
 async def process_ocr_logic(message: types.Message, state: FSMContext):
     destination = None
-
     try:
         photo = message.photo[-1]
         file = await message.bot.get_file(photo.file_id)
@@ -73,15 +106,20 @@ async def process_ocr_logic(message: types.Message, state: FSMContext):
         if not {"sys", "dia", "pul"}.issubset(result):
             raise ValueError(result.get("msg", "Не вдалося розпізнати показники."))
 
-        await state.update_data(sys=result["sys"], dia=result["dia"], pul=result["pul"])
+        sys, dia, pul = normalize_pressure_values(result["sys"], result["dia"], result["pul"])
+        if has_absurd_pressure_values(sys, dia, pul):
+            await switch_to_manual_input(message, state)
+            return
+
+        await state.update_data(sys=sys, dia=dia, pul=pul)
         await state.set_state(MeasuresSetup.confirming_data)
 
         await message.answer(
             (
-                "Розпізнані показники:\n"
-                f"Систолічний тиск: {result['sys']}\n"
-                f"Діастолічний тиск: {result['dia']}\n"
-                f"Пульс: {result['pul']}\n\n"
+                "Розпізнано:\n"
+                f"{sys}\n"
+                f"{dia}\n"
+                f"{pul}\n\n"
                 "Підтвердити збереження?"
             ),
             reply_markup=confirm_measure_kb()
@@ -101,13 +139,23 @@ async def process_ocr_logic(message: types.Message, state: FSMContext):
 async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer("Показники зберігаються.")
     user_data = await state.get_data()
-    sys = user_data.get("sys")
-    dia = user_data.get("dia")
-    pul = user_data.get("pul")
 
-    if sys<50 or sys>300 or dia<10 or dia>200 or pul<10 or dia>200:
+    try:
+        sys, dia, pul = normalize_pressure_values(
+            user_data.get("sys"),
+            user_data.get("dia"),
+            user_data.get("pul")
+        )
+    except (TypeError, ValueError):
         await callback.message.answer(
-            "Дані для збереження відсутні. Введіть показники вручну у форматі 120/80/60."
+            "Дані відсутні. Введіть показники вручну у форматі 120/80/60."
+        )
+        await state.set_state(MeasuresSetup.sending_manual)
+        return
+
+    if has_absurd_pressure_values(sys, dia, pul):
+        await callback.message.answer(
+            "Показники некоректні. Введіть дані вручну у форматі 120/80/60."
         )
         await state.set_state(MeasuresSetup.sending_manual)
         return
@@ -123,7 +171,6 @@ async def edit_measure(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.answer(
         "Введіть показники вручну у форматі 120/80/60 "
-        "(систолічний/діастолічний/пульс)."
     )
     await state.set_state(MeasuresSetup.sending_manual)
 
@@ -135,8 +182,8 @@ async def measure_manual(message: types.Message, state: FSMContext):
         if len(values) != 3:
             raise ValueError
 
-        sys, dia, pul = map(int, values)
-        if min(sys, dia, pul) <= 0:
+        sys, dia, pul = normalize_pressure_values(*values)
+        if has_absurd_pressure_values(sys, dia, pul):
             raise ValueError
 
         await add_pressure_record(message.from_user.id, sys, dia, pul)
@@ -144,5 +191,5 @@ async def measure_manual(message: types.Message, state: FSMContext):
         await state.clear()
     except ValueError:
         await message.answer(
-            "Некоректний формат. Введіть показники у форматі 120/80/60."
+            "Некоректні показники. Введіть дані у форматі 120/80/60."
         )
