@@ -1,6 +1,6 @@
 from datetime import time, datetime, timedelta
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload  # Понадобится, если будут сложные связи
+from sqlalchemy.orm import selectinload
 
 from db.models import async_session, User, PressureRecord, Settings
 

@@ -1,12 +1,12 @@
 from os import getenv
 
-
+from dotenv import load_dotenv
 from sqlalchemy import BigInteger, String, ForeignKey, DateTime
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from datetime import datetime, time
-
+load_dotenv()
 engine = create_async_engine(getenv("DATABASE_URL"))
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
