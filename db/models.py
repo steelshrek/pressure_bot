@@ -1,44 +1,53 @@
+from datetime import datetime, time
 from os import getenv
 
 from dotenv import load_dotenv
-from sqlalchemy import BigInteger, String, ForeignKey, DateTime
+from sqlalchemy import BigInteger, ForeignKey, String
+from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
-from datetime import datetime, time
+
 load_dotenv()
-engine = create_async_engine(getenv("DATABASE_URL"))
+
+database_url = getenv("DATABASE_URL")
+if not database_url:
+    raise RuntimeError("Не налаштовано DATABASE_URL у файлі .env.")
+
+engine = create_async_engine(database_url)
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 
+
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    tg_id: Mapped[int] = mapped_column(BigInteger)  # ID из Телеграма
+    tg_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=True)
 
 
 class PressureRecord(Base):
-    __tablename__ = 'pressure_records'
+    __tablename__ = "pressure_records"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     sys: Mapped[int] = mapped_column()
     dia: Mapped[int] = mapped_column()
     pul: Mapped[int] = mapped_column()
     timestamp: Mapped[datetime] = mapped_column(default=datetime.now)
 
+
 class Settings(Base):
-    __tablename__ = 'settings'
+    __tablename__ = "settings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    f_time_of_not:Mapped[time]= mapped_column()
-    s_time_of_not:Mapped[time]= mapped_column()
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+    f_time_of_not: Mapped[time] = mapped_column()
+    s_time_of_not: Mapped[time] = mapped_column()
+
 
 async def async_main():
     async with engine.begin() as conn:

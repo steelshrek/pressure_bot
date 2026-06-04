@@ -1,16 +1,18 @@
-from datetime import time, datetime, timedelta
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from datetime import datetime, time, timedelta
 
-from db.models import async_session, User, PressureRecord, Settings
+from sqlalchemy import select
+
+from db.models import PressureRecord, Settings, User, async_session
 
 
 async def set_user(tg_id: int, name: str):
     async with async_session() as session:
         user = await session.scalar(select(User).where(User.tg_id == tg_id))
         if not user:
-            session.add(User(tg_id=tg_id, name=name))
+            user = User(tg_id=tg_id, name=name)
+            session.add(user)
             await session.commit()
+            await session.refresh(user)
         return user
 
 
@@ -18,7 +20,7 @@ async def add_pressure_record(tg_id: int, sys: int, dia: int, pul: int):
     async with async_session() as session:
         user = await session.scalar(select(User).where(User.tg_id == tg_id))
         if not user:
-            user = User(tg_id=tg_id, name="User")
+            user = User(tg_id=tg_id, name="Користувач")
             session.add(user)
             await session.flush()
 
@@ -31,7 +33,6 @@ async def add_pressure_record(tg_id: int, sys: int, dia: int, pul: int):
 async def get_pressure_history(tg_id: int, days: int = None):
     async with async_session() as session:
         user_id_subquery = select(User.id).where(User.tg_id == tg_id).scalar_subquery()
-
         query = select(PressureRecord).where(PressureRecord.user_id == user_id_subquery)
 
         if days:
@@ -39,7 +40,6 @@ async def get_pressure_history(tg_id: int, days: int = None):
             query = query.where(PressureRecord.timestamp >= start_date)
 
         query = query.order_by(PressureRecord.timestamp.desc())
-
         result = await session.execute(query)
         return result.scalars().all()
 
@@ -52,7 +52,7 @@ async def get_or_create_settings(tg_id: int):
         if not settings:
             user = await session.scalar(select(User).where(User.tg_id == tg_id))
             if not user:
-                user = User(tg_id=tg_id, name="User")
+                user = User(tg_id=tg_id, name="Користувач")
                 session.add(user)
                 await session.flush()
 
@@ -79,7 +79,7 @@ async def update_reminder_time(tg_id: int, morning: time, evening: time):
         else:
             user = await session.scalar(select(User).where(User.tg_id == tg_id))
             if not user:
-                user = User(tg_id=tg_id, name="User")
+                user = User(tg_id=tg_id, name="Користувач")
                 session.add(user)
                 await session.flush()
 
